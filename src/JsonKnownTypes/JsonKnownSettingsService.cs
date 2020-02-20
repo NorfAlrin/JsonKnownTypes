@@ -1,20 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using JsonKnownTypes.Attributes;
 using JsonKnownTypes.Exceptions;
 
 namespace JsonKnownTypes
 {
     public static class JsonKnownSettingsService
     {
-        public static JsonKnownDiscriminatorAttribute DiscriminatorAttribute { get; set; } = new JsonKnownDiscriminatorAttribute();
+        public static JsonKnownDiscriminatorAttribute DefaultDiscriminatorAttribute { get; set; } = new JsonKnownDiscriminatorAttribute();
+        public static Func<string, string> DefaultNaming { get; set; } = name => name;
 
         public static JsonKnownTypeSettings GetSettings<T>()
         {
             var data = new JsonKnownTypeSettings();
             var knownDiscriminatorAttribute = (JsonKnownDiscriminatorAttribute)Attribute.GetCustomAttribute(typeof(T), typeof(JsonKnownDiscriminatorAttribute)) 
-                                              ?? DiscriminatorAttribute;
+                                              ?? DefaultDiscriminatorAttribute;
             
             data.Name = knownDiscriminatorAttribute.Name;
             var autoType = knownDiscriminatorAttribute.AutoJsonKnownType;
@@ -25,7 +25,7 @@ namespace JsonKnownTypes
                 data.TypeToDiscriminator = knownTypeAttributes.ToDictionary(x => x.Type, x => x.Discriminator);
 
                 if(autoType)
-                    AddTypesWhichAreNotExists<T>(data.TypeToDiscriminator);
+                    AddTypesWhichAreNotContains<T>(data.TypeToDiscriminator);
 
                 data.DiscriminatorToType = data.TypeToDiscriminator.ToDictionary(x => x.Value, x => x.Key);
             }
@@ -37,12 +37,15 @@ namespace JsonKnownTypes
             return data;
         }
 
-        private static void AddTypesWhichAreNotExists<T>(Dictionary<Type, string> typeToDiscriminator)
+        private static void AddTypesWhichAreNotContains<T>(Dictionary<Type, string> typeToDiscriminator)
         {
             foreach (var heir in GetAllInheritance<T>())
             {
-                if(!typeToDiscriminator.ContainsKey(heir))
-                    typeToDiscriminator.Add(heir, heir.Name);
+                if (!typeToDiscriminator.ContainsKey(heir))
+                {
+                    var name = DefaultNaming(heir.Name);
+                    typeToDiscriminator.Add(heir, name);
+                }
             }
         }
 
